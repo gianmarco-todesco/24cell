@@ -146,11 +146,14 @@ function createCubeoctahedron(r) {
 }
 
 class TriangleMesh {
-    constructor(pts, indices) {
+    constructor(pts) {
         let positions = []
-        pts.forEach(p => positions.push(p.x,p.y,p.z));
+        pts.forEach(p => positions.push(p.x,p.y,p.z,p.x,p.y,p.z));
         let normals = [];
-      
+        let indices = [];
+        for(let i=0;i+5<positions.length;i+=6) {
+            indices.push(i,i+2,i+4,i+1,i+5,i+3);
+        }
         let vertexData = new BABYLON.VertexData();
         BABYLON.VertexData.ComputeNormals(positions, indices, normals);      
         vertexData.positions = positions;
@@ -198,8 +201,12 @@ function populateScene() {
             cub.vertices[1],cub.vertices[0],cub.vertices[8],
             oct2.vertices[0], oct2.vertices[1], oct2.vertices[2],
             
-        ],
-        [0,1,2,3,4,5,6,7,8])
+            oct2.vertices[5], oct2.vertices[3], oct2.vertices[4],
+            cub.vertices[7],cub.vertices[6],cub.vertices[10],
+            
+            oct1.vertices[3], oct1.vertices[4], oct1.vertices[5],
+            
+        ])
 
     /*
     
