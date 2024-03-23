@@ -6,7 +6,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // il tag canvas che visualizza l'animazione
     canvas = document.getElementById('c');
     // la rotella del mouse serve per fare zoom e non per scrollare la pagina
-    canvas.addEventListener('wheel', evt => evt.preventDefault());
+    canvas.addEventListener('wheel', evt => evt.preventDefault(), {passive:false});
     
     // engine & scene
     engine = new BABYLON.Engine(canvas, true);
@@ -171,30 +171,48 @@ class TriangleMesh {
     }
 }
 
+let innerOct, outerOct, cubOct, crossEdges1, crossEdges2;
+let edgesTable= {};
+
 function populateScene() {
     // createGrid(scene);
 
-    let oct1 = createOctahedron(5);
-    oct1.edgeMeshes.forEach(mesh=>mesh.material.diffuseColor.set(0.8,0.75,0.1));
-    let oct2 = createOctahedron(1);
-    oct2.edgeMeshes.forEach(mesh=>mesh.material.diffuseColor.set(0.4,0.2,0.9));
-    let cub = createCubeoctahedron(1.7);
+    outerOct = createOctahedron(5);
+    edgesTable["outerOct"] = outerOct.edgeMeshes;
 
-    let crossEdges1 = [];
-    let crossEdges2 = [];
+    // oct1.edgeMeshes.forEach(mesh=>mesh.material.diffuseColor.set(0.8,0.75,0.1));
+    innerOct = createOctahedron(1);
+    edgesTable["innerOct"] = innerOct.edgeMeshes;
+
+    // oct2.edgeMeshes.forEach(mesh=>mesh.material.diffuseColor.set(0.4,0.2,0.9));
+    cubOct = createCubeoctahedron(1.7);
+    edgesTable["cubOct"] = cubOct.edgeMeshes;
+
+    let cross = edgesTable["cross"] = [];
+    crossEdges1 = [];
+    crossEdges2 = [];
+
     for(let i=0; i<6; i++) {
-        let p1 = oct1.vertices[i];
-        let p2 = oct2.vertices[i];
+        let p1 = outerOct.vertices[i];
+        let p2 = innerOct.vertices[i];
         for(let j=0; j<4; j++) {
-            let p3 = cub.vertices[cub.faces[i][j]];
-            crossEdges1.push(createEdge(p1,p3));
-            crossEdges2.push(createEdge(p2,p3));
+            let p3 = cubOct.vertices[cubOct.faces[i][j]];
+            let e13 = createEdge(p1,p3);
+            let e23 = createEdge(p2,p3);
+            
+            crossEdges1.push(e13);
+            crossEdges2.push(e23);
+            cross.push(e13, e23);
         }
     }
-    crossEdges1.forEach(mesh=>mesh.material.diffuseColor.set(0.2,0.85,0.3));
-    crossEdges2.forEach(mesh=>mesh.material.diffuseColor.set(0.85,0.4,0.35));
+    //crossEdges1.forEach(mesh=>mesh.material.diffuseColor.set(0.2,0.85,0.3));
+    //crossEdges2.forEach(mesh=>mesh.material.diffuseColor.set(0.85,0.4,0.35));
     
 
+    // mat = new BABYLON.StandardMaterial('a');
+    // crossEdges1.forEach(mesh=>mesh.material = mat);
+
+    let oct1 = outerOct, oct2 = innerOct, cub = cubOct;
     new TriangleMesh(
         [
             oct1.vertices[0], oct1.vertices[1], oct1.vertices[2],
@@ -239,4 +257,14 @@ function populateScene() {
     */
 
 
+
+}
+
+function changeColor(widget) {
+    let color = BABYLON.Color3.FromHexString(widget.value);
+    let name = widget.name;
+    let edges = edgesTable[name];
+    if(edges) {
+        edges.forEach(mesh=>mesh.material.diffuseColor.copyFrom(color));
+    }
 }
