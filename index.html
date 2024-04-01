@@ -20,6 +20,7 @@
             }
             #right-column {
                 margin-left:30px;
+                min-width: 300px;
             }
         </style>
         <script src="babylon.js"></script>
@@ -31,6 +32,23 @@
         <div id="main">
             <canvas id="c"></canvas>        
             <div id="right-column">
+                <h2>Visualizzazione spigoli</h2>
+                <p>
+                    Ottaedro interno : 
+                    <select id="oct1" class="edge-color" onchange="changeEdgeStyle(this)"></select>
+                </p>
+                <p>
+                    Ottaedro esterno : 
+                    <select id="oct2" class="edge-color" onchange="changeEdgeStyle(this)"></select>
+                </p>
+                <p>
+                    Cubottaedro : 
+                    <select id="cuboct" class="edge-color" onchange="changeEdgeStyle(this)"></select>
+                </p>
+                <p>
+                    Collegamenti : 
+                    <select id="link" class="edge-color" onchange="changeEdgeStyle(this)"></select>
+                </p>
 
                 <!--div>
                     <input type="color" name="innerOct" value="#1A66CC" oninput="changeColor(this)"/>
@@ -51,7 +69,7 @@
 
                 <!--div><p>&nbsp;</p></div>
                 <div id="cells-checkboxes"></div -->
-                    <h2>Tori</h2>
+                <h2>Tori</h2>
                 <div>
                     <input type="checkbox" onchange="uff(this, 0)"/>
                     <input type="checkbox" onchange="uff(this, 1)"/>

@@ -40,27 +40,82 @@ window.addEventListener('DOMContentLoaded', () => {
 
 });
 
-let p24 = P24.create24Cell(0.5,1,5);
+let p24 = P24.create24Cell(0.7,1.2,5);
 
-/*
-let currentCell = -1;
-
-function setCurrentCell(idx) {
-    p24.hideFaces();
-    currentCell = idx;
-    if(0<=currentCell && currentCell<p24.cells.length) 
-        p24.showCell(currentCell);
+class EdgeStyle {
+    constructor(name) {
+        this.name = name;
+    }
+    setEdges(edges) {
+        if(!p24.edgeMeshes || !p24.edgeLines) return;
+        edges.forEach(i => this.style(p24.edgeLines[i], p24.edgeMeshes[i]));
+    }
 }
 
-function incCurrentCell() {
-    currentCell = (currentCell+1) % p24.cells.length;
-    setCurrentCell(currentCell);
+class InvisibleEdgeStyle extends EdgeStyle {
+    constructor(name) {
+        super(name);
+    }
+    style(line, mesh) {
+        line.isVisible = mesh.isVisible = false;
+    }
 }
-function decCurrentCell() {
-    currentCell = (currentCell-1+p24.cells.length) % p24.cells.length;
-    setCurrentCell(currentCell);
+
+class LineEdgeStyle extends EdgeStyle {
+    constructor(name, r,g,b) {
+        super(name);
+        this.color = new BABYLON.Color3(r,g,b);
+    }
+    style(line, mesh) {
+        line.isVisible = true;
+        mesh.isVisible = false;
+        line.color.copyFrom(this.color);
+    }
 }
-*/
+
+
+class TubeEdgeStyle extends EdgeStyle {
+    constructor(name, r,g,b) {
+        super(name);
+        this.color = new BABYLON.Color3(r,g,b);
+    }
+    style(line, mesh) {
+        line.isVisible = false;
+        mesh.isVisible = true;
+        mesh.material.diffuseColor.copyFrom(this.color);
+        mesh.material.ambientColor.copyFrom(this.color);
+    }
+}
+let edgeStyles = {
+    '0': new InvisibleEdgeStyle("No"),
+
+    '1': new LineEdgeStyle("Linea nera", 0.1,0.1,0.1),
+    '2': new LineEdgeStyle("Linea bianca",0.9,0.9,0.9),
+    '3': new LineEdgeStyle("Linea rossa",0.9,0.1,0.1),
+    '4': new LineEdgeStyle("Linea magenta",0.9,0.1,0.9),
+
+    '5': new TubeEdgeStyle("Tubo azzurro",0.1,0.6,0.9),
+    '6': new TubeEdgeStyle("Tubo giallo",0.6,0.6,0.1),
+    '7': new TubeEdgeStyle("Tubo arancio",0.9,0.45,0.1),
+
+}
+
+function changeEdgeStyle(cb) {
+    console.log(cb);
+    let tb = {
+        'oct1' : p24.edgesGroups[0],
+        'oct2' : p24.edgesGroups[1],
+        'cuboct' : p24.edgesGroups[2],
+        'link' : p24.edgesGroups[3],
+               
+    };
+    let edges = tb[cb.id];
+    let style = edgeStyles[cb.value];
+    console.log(cb.id, edges)
+    if(style === undefined || edges === undefined) return;
+    style.setEdges(edges);    
+    console.log(cb);
+}
 
 function setInnerCellColor(i, r,g,b) {
     let mat = p24.innerCells[i].material;
@@ -116,7 +171,20 @@ function populateScene() {
     });
     */
 
+    updateGui();
 
+
+}
+
+function updateGui() {
+    document.querySelectorAll(".edge-color").forEach(menu => {
+        Object.keys(edgeStyles).forEach(key => {
+            let s = document.createElement('option');
+            s.value = key;
+            s.innerHTML = edgeStyles[key].name;
+            menu.appendChild(s);
+        })
+    })
 }
 
 function uff(cb, i) {

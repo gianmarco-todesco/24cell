@@ -14,9 +14,9 @@ function createVertex(p) {
 
 function createEdge(p1,p2) {
     let edgeMat = new BABYLON.StandardMaterial('edge-mat',scene);
-    edgeMat.diffuseColor.set(0.1,0.3,0.5);
+    edgeMat.diffuseColor.set(0.2,0.6,0.7);
     let edgeMesh = BABYLON.MeshBuilder.CreateCylinder('vertex', {
-        diameter:0.07, 
+        diameter:0.08, 
         height:1
     }, scene);
     edgeMesh.material = edgeMat;
@@ -94,6 +94,7 @@ class P24 {
             [2,9,17,3,12,20],
             [5,7,8,14,21,19]
         ];
+        this._createEdgesGroups();
     }
 
     _updateFaces() {
@@ -130,14 +131,37 @@ class P24 {
         })
     }
 
+    _createEdgesGroups() {
+        let edgesGroups = this.edgesGroups = [[],[],[],[],[],[]];
+        const getVGroup = (v) => {
+            if(v<6) return 0;
+            else if(v<12) return 1;
+            else return 2;
+        } 
+        this.edges.forEach(([a,b],i) => {
+            let ga = getVGroup(a);
+            let gb = getVGroup(b);
+            if(ga==0 && gb==0)
+                this.edgesGroups[0].push(i); // primo oct
+            else if(ga==1 && gb==1)
+               this.edgesGroups[1].push(i); // secondo oct
+            else if(ga==2 && gb==2)
+               this.edgesGroups[2].push(i); // cuboct
+            else 
+               this.edgesGroups[3].push(i); // oct2/cuboct
+        });
+    }
     createMeshes() {
         // vertices
-        this.vertexMeshes = this.vertices.map(p=>createVertex(p))
+        // this.vertexMeshes = this.vertices.map(p=>createVertex(p))
 
         // edges
         let vertices = this.vertices;
-        this.edgeMeshes = this.edges.map(([a,b]) => createLineEdge(vertices[a], vertices[b]));
-
+        this.edgeMeshes = this.edges.map(([a,b]) => createEdge(vertices[a], vertices[b]));
+        this.edgeLines = this.edges.map(([a,b]) => createLineEdge(vertices[a], vertices[b]));
+        this.edgeMeshes.forEach(mesh=>mesh.isVisible=false)
+        this.edgeLines.forEach(line=>line.isVisible=false)
+        
         // faces
         let faceMeshes = this.faceMeshes = this.faces_.map(face => 
             createTriangle(...face.map(i => vertices[i])));
