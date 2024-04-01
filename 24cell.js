@@ -1,49 +1,12 @@
+
 'use strict';
-
-let canvas, engine, scene, camera;
-
-window.addEventListener('DOMContentLoaded', () => {
-    // il tag canvas che visualizza l'animazione
-    canvas = document.getElementById('c');
-    // la rotella del mouse serve per fare zoom e non per scrollare la pagina
-    canvas.addEventListener('wheel', evt => evt.preventDefault(), {passive:false});
-    
-    // engine & scene
-    engine = new BABYLON.Engine(canvas, true);
-    scene = new BABYLON.Scene(engine);
-    scene.ambientColor.set(0.5,0.5,0.5)
-
-    // camera
-    camera = new BABYLON.ArcRotateCamera('cam', 
-            -2.43, 1.22,
-            20, 
-            new BABYLON.Vector3(0,0,0), 
-            scene);
-    camera.attachControl(canvas,true);
-    camera.wheelPrecision = 50;
-    camera.lowerRadiusLimit = 3;
-    camera.upperRadiusLimit = 13*2;  
-    camera.fov = 0.5;          
-    
-    // luce
-    let light1 = new BABYLON.PointLight('light1',new BABYLON.Vector3(0,1,0), scene);
-    light1.parent = camera;
-    
-    // aggiungo i vari oggetti
-    populateScene(scene);
-    
-    // main loop
-    engine.runRenderLoop(()=>scene.render());
-
-    // resize event
-    window.addEventListener("resize", () => engine.resize());
-});
 
 
 function createVertex(p) {
     let vertexMat = new BABYLON.StandardMaterial('vertex-mat',scene);
     vertexMat.diffuseColor.set(0.1,0.1,0.1);
-    let vertexMesh = BABYLON.MeshBuilder.CreateSphere('vertex', {diameter:0.1}, scene);
+    let vertexMesh = BABYLON.MeshBuilder.CreateSphere('vertex', {
+        diameter:0.05}, scene);
     vertexMesh.material = vertexMat;
     vertexMesh.position.copyFrom(p);
     return vertexMesh;
@@ -51,9 +14,9 @@ function createVertex(p) {
 
 function createEdge(p1,p2) {
     let edgeMat = new BABYLON.StandardMaterial('edge-mat',scene);
-    edgeMat.diffuseColor.set(0.1,0.4,0.8);
+    edgeMat.diffuseColor.set(0.1,0.3,0.5);
     let edgeMesh = BABYLON.MeshBuilder.CreateCylinder('vertex', {
-        diameter:0.1, 
+        diameter:0.07, 
         height:1
     }, scene);
     edgeMesh.material = edgeMat;
@@ -61,19 +24,102 @@ function createEdge(p1,p2) {
     return edgeMesh;
 }
 
-class Polyhedron {
-    constructor(vertices, faces) {
+function createLineEdge(p1, p2) {
+    let edgeLine = BABYLON.CreateLines('a', {points:[p1,p2]})
+    edgeLine.color.set(0.3,0.4,0.5);
+    return edgeLine;
+}
+
+function createTriangle(p1,p2,p3) {
+    let mesh = new BABYLON.Mesh('triangle');
+    let positions = [];
+    let pts = [p1,p2,p3,p1,p2,p3];
+    pts.forEach(p=>{
+        positions.push(p.x,p.y,p.z)
+    });
+    let indices = [0,1,2,3,5,4];
+    let vertexData = new BABYLON.VertexData();
+    let normals = [];
+    BABYLON.VertexData.ComputeNormals(positions, indices, normals);      
+    vertexData.positions = positions;
+    vertexData.indices = indices;
+    vertexData.normals = normals;
+    vertexData.applyToMesh(mesh);    
+    let material = mesh.material = new BABYLON.StandardMaterial('mat')
+    material.ambientColor.set(0.8,0.9,0.25);        
+    material.diffuseColor.set(0.8,0.9,0.25);        
+    material.diffuseColor.set(0.2,0.2,0.25);        
+    material.alpha = 0.5;
+    return mesh;
+}
+
+function createInnerOctFaces(points) {
+    let center = new BABYLON.Vector3(0,0,0);
+    points.forEach(p=>center.addInPlace(p));
+    center.scaleInPlace(1/points.length);
+    points = points.map(p=>
+        BABYLON.Vector3.Lerp(center, p, 0.9));
+    let mesh = new BABYLON.Mesh('innerOct');
+    let positions = [];
+    points.forEach(p=>{
+        positions.push(p.x,p.y,p.z)
+    });
+    let indices = [0,1,2,0,2,3,0,3,4,0,4,1,5,2,1,5,3,2,5,4,3,5,1,4];
+    let vertexData = new BABYLON.VertexData();
+    //let normals = [];
+    //BABYLON.VertexData.ComputeNormals(positions, indices, normals);      
+    vertexData.positions = positions;
+    vertexData.indices = indices;
+    // vertexData.normals = normals;
+    vertexData.applyToMesh(mesh);    
+    let material = mesh.material = new BABYLON.StandardMaterial('mat')
+    material.ambientColor.set(0.8,0.9,0.25);        
+    material.diffuseColor.set(0.8,0.9,0.25);        
+    material.specularColor.set(0.1,0.1,0.1);        
+    // material.alpha = 0.75;
+    return mesh;
+}
+
+
+class P24 {
+    constructor(vertices, faces, cells) {
         this.vertices = vertices;
-        this.faces = faces;
+        this.hFaces = faces;
+        this.cells = cells;
+        this._updateFaces();
         this._updateEdges();
-        this._createMeshes();
+        this.toruses = [
+            [0,10,11,22,23],
+            [13,15,4,16,6,18],
+            [2,9,17,3,12,20],
+            [5,7,8,14,21,19]
+        ];
     }
+
+    _updateFaces() {
+        let hFaces = this.hFaces;
+        let faceMap = {}
+        let faces = this.faces_ = [];
+        let hFacesToFaces = this.hFacesToFaces = [];
+        hFaces.forEach(hFace => {
+            let v = hFace.map(x=>x).sort();
+            let faceId = `${v}`;
+            let j = faceMap[faceId];
+            if(j===undefined) {
+                j = faces.length;
+                faces.push(v);
+                faceMap[faceId] = j;
+            }
+            hFacesToFaces.push(j);
+        })        
+    }
+
     _updateEdges() {
         this.edges = [];
         let edgeMap = {}
         let n = this.vertices.length;
         let edges = this.edges;
-        this.faces.forEach(face => {
+        this.faces_.forEach(face => {
             for(let i=0; i<face.length; i++) {
                 let a = face[i], b = face[(i+1)%face.length];
                 if(!((a*n+b) in edgeMap)) {
@@ -84,187 +130,193 @@ class Polyhedron {
         })
     }
 
-    _createMeshes() {
-        let vertexMeshes = this.vertexMeshes = [];
-        this.vertices.forEach(vertex => {
-            vertexMeshes.push(createVertex(vertex));
-        })
-        let edgeMeshes = this.edgeMeshes = [];
+    createMeshes() {
+        // vertices
+        this.vertexMeshes = this.vertices.map(p=>createVertex(p))
+
+        // edges
         let vertices = this.vertices;
-        this.edges.forEach(([a,b]) => {
-            edgeMeshes.push(createEdge(vertices[a], vertices[b]))
-        })        
+        this.edgeMeshes = this.edges.map(([a,b]) => createLineEdge(vertices[a], vertices[b]));
+
+        // faces
+        let faceMeshes = this.faceMeshes = this.faces_.map(face => 
+            createTriangle(...face.map(i => vertices[i])));
+        faceMeshes.forEach(mesh => mesh.isVisible = false)        
     }
-};
 
-const Vector3 = BABYLON.Vector3;
-
-function createOctahedron(r) {
-    let pts = [
-        new Vector3(0,r,0),
-        new Vector3(-r,0,0),
-        new Vector3(0,0,-r),
-        new Vector3(r,0,0),
-        new Vector3(0,0,r),
-        new Vector3(0,-r,0)
-    ];
-    let faces = [
-        [0,1,2],[0,2,3],[0,3,4],[0,4,1],[5,2,1],[5,3,2],[5,4,3],[5,1,4]
-    ];
-    return new Polyhedron(pts, faces);
-}
-
-function createCubeoctahedron(r) {
-    const squareEdge = Math.sqrt(2)*r;
-    let y = Math.sqrt(2)*squareEdge/2;
-    let pts = [
-        // quadrato superiore
-        new Vector3(-r,y,0),
-        new Vector3(0,y,-r),
-        new Vector3(r,y,0),
-        new Vector3(0,y,r),
-        // quadrato inferiore
-        new Vector3(-r,-y,0),
-        new Vector3(0,-y,-r),
-        new Vector3(r,-y,0),
-        new Vector3(0,-y,r),
-        // equatore
-        new Vector3(-r,0,-r),
-        new Vector3( r,0,-r),
-        new Vector3( r,0, r),
-        new Vector3(-r,0, r)    
-    ];
-    let faces = [
-        [0,1,2,3],
-        [0,11,4,8],
-        [1,8,5,9],
-        [2,9,6,10],
-        [3,10,7,11],
-        [4,7,6,5],
-    ]
-    return new Polyhedron(pts, faces)
-}
-
-class TriangleMesh {
-    constructor(pts) {
-        let positions = []
-        pts.forEach(p => positions.push(p.x,p.y,p.z,p.x,p.y,p.z));
-        let normals = [];
-        let indices = [];
-        for(let i=0;i+5<positions.length;i+=6) {
-            indices.push(i,i+2,i+4,i+1,i+5,i+3);
+    createInnerCells() {
+        this.innerCells = [];
+        for(let i=0;i<this.cells.length;i++) {
+            let oct = createInnerOctFaces(this.getCellPoints(i));
+            oct.isVisible = false
+            this.innerCells.push(oct);
         }
-        let vertexData = new BABYLON.VertexData();
-        BABYLON.VertexData.ComputeNormals(positions, indices, normals);      
-        vertexData.positions = positions;
-        vertexData.indices = indices;
-        vertexData.normals = normals;
-        
-        this.mesh = new BABYLON.Mesh('mesh');
-        vertexData.applyToMesh(this.mesh);    
-        this.mesh.material = new BABYLON.StandardMaterial('mat')
-        this.mesh.material.ambientColor.set(0.8,0.9,0.95);
-        
-        this.mesh.material.diffuseColor.set(0.8,0.9,0.95);
-        this.mesh.material.specularColor.set(0.01,0.01,0.01);
-        this.mesh.material.alpha = 0.5;
+
     }
-}
 
-let innerOct, outerOct, cubOct, crossEdges1, crossEdges2;
-let edgesTable= {};
+    getCellFaces(i) {
+        return this.cells[i].map(j=>this.hFacesToFaces[j]);
+    }
 
-function populateScene() {
-    // createGrid(scene);
+    showCell(i) {
+        this.getCellFaces(i).forEach(j=>this.faceMeshes[j].isVisible = true);
+    }
+    hideCell(i) {
+        this.getCellFaces(i).forEach(j=>this.faceMeshes[j].isVisible = false);
+    }
+    hideFaces() {
+        this.faceMeshes.forEach(mesh=>mesh.isVisible=false)
+    }
 
-    outerOct = createOctahedron(5);
-    edgesTable["outerOct"] = outerOct.edgeMeshes;
-
-    // oct1.edgeMeshes.forEach(mesh=>mesh.material.diffuseColor.set(0.8,0.75,0.1));
-    innerOct = createOctahedron(1);
-    edgesTable["innerOct"] = innerOct.edgeMeshes;
-
-    // oct2.edgeMeshes.forEach(mesh=>mesh.material.diffuseColor.set(0.4,0.2,0.9));
-    cubOct = createCubeoctahedron(1.7);
-    edgesTable["cubOct"] = cubOct.edgeMeshes;
-
-    let cross = edgesTable["cross"] = [];
-    crossEdges1 = [];
-    crossEdges2 = [];
-
-    for(let i=0; i<6; i++) {
-        let p1 = outerOct.vertices[i];
-        let p2 = innerOct.vertices[i];
-        for(let j=0; j<4; j++) {
-            let p3 = cubOct.vertices[cubOct.faces[i][j]];
-            let e13 = createEdge(p1,p3);
-            let e23 = createEdge(p2,p3);
-            
-            crossEdges1.push(e13);
-            crossEdges2.push(e23);
-            cross.push(e13, e23);
+    getCellPoints(i) {
+        let hFaces = this.cells[i].map(j=>this.hFaces[j]);
+        let links = new Set();
+        let vertices = new Set();
+        const M = 10000;
+        const linkid = (a,b) => a>=b ? a*M+b : b*M+a;
+        hFaces.forEach(([a,b,c]) => {
+            vertices.add(a);
+            vertices.add(b);
+            vertices.add(c);
+            links.add(linkid(a,b))
+            links.add(linkid(a,c))
+            links.add(linkid(b,c))
+        })
+        const linked = (a,b) => links.has(linkid(a,b));        
+        vertices = Array.from(vertices);
+        let [v0,v1,v2] = hFaces[0];        
+        let vv = vertices.filter(v=>(v!=v0 && v!=v1 && v!=v2 && linked(v0,v)))
+        let [v3,v4] = linked(vv[0],v2) ? vv : [vv[1],vv[0]];
+        let v5 = vertices.find(v=>!(new Set([v0,v1,v2,v3,v4])).has(v));
+        let pts = [v0,v1,v2,v3,v4,v5].map(j=>this.vertices[j]);
+        let center = new BABYLON.Vector3(0,0,0);
+        pts.forEach(p=>center.addInPlace(p));
+        center.scaleInPlace(1.0/pts.length);
+        let nrm1 = BABYLON.Vector3.Cross(
+            pts[2].subtract(pts[0]),
+            pts[1].subtract(pts[0]));
+        if(BABYLON.Vector3.Dot(nrm1, pts[0].subtract(center)) < 0.0) {
+            let p1 = pts[1], p3 = pts[3];
+            pts[1] = p3;
+            pts[3] = p1;
         }
+        return pts;
     }
-    //crossEdges1.forEach(mesh=>mesh.material.diffuseColor.set(0.2,0.85,0.3));
-    //crossEdges2.forEach(mesh=>mesh.material.diffuseColor.set(0.85,0.4,0.35));
-    
 
-    // mat = new BABYLON.StandardMaterial('a');
-    // crossEdges1.forEach(mesh=>mesh.material = mat);
+    showTorus(i, color) {
+        let cells = this.toruses[i];
+        cells.forEach(c => {
+            this.innerCells[c].isVisible = true;
+            let material = this.innerCells[c].material;
+            material.ambientColor.copyFrom(color);
+            material.diffuseColor.copyFrom(color);             
+        });        
+    }
+    hideTorus(i) {
+        let cells = this.toruses[i];
+        cells.forEach(c=>this.innerCells[c].isVisible = false);
+    }
 
-    let oct1 = outerOct, oct2 = innerOct, cub = cubOct;
-    new TriangleMesh(
+} 
+
+
+P24.create24Cell = function (r1, r2, r3) {
+
+    let vertices = [];
+    let faces = [];
+    let cells = [];
+    function addVertex(x,y,z) {
+        let i = vertices.length;
+        vertices.push(new BABYLON.Vector3(x,y,z));
+        return i;
+    }
+    function addFace(vv) {
+        let i = faces.length;
+        faces.push(vv);
+        return i;
+    }
+    function addOct(r) {
+        let ii = [[0,r,0],[-r,0,0],[0,0,-r],[r,0,0],[0,0,r],[0,-r,0]].map(([x,y,z]) => addVertex(x,y,z));
+        let ff = [[0,1,2],[0,2,3],[0,3,4],[0,4,1],[5,2,1],[5,3,2],[5,4,3],[5,1,4]].map(vv=>addFace(vv.map(i=>ii[i])));
+        cells.push(ff);
+        return ff;
+    }
+    function addCubOct(r) {
+        const squareEdge = Math.sqrt(2)*r;
+        let y = Math.sqrt(2)*squareEdge/2;
+        let ii = [
+            // quadrato superiore
+            [-r,y,0],[0,y,-r],[r,y,0],[0,y,r],
+            // quadrato inferiore
+            [-r,-y,0],[0,-y,-r],[r,-y,0],[0,-y,r],
+            // equatore
+            [-r,0,-r],[r,0,-r],[r,0,r],[-r,0,r],
+        ].map(([x,y,z]) => addVertex(x,y,z));
         [
-            oct1.vertices[0], oct1.vertices[1], oct1.vertices[2],
-            cub.vertices[1],cub.vertices[0],cub.vertices[8],
-            oct2.vertices[0], oct2.vertices[1], oct2.vertices[2],
+            [0,8,1],[1,9,2],[2,10,3],[3,11,0],
+            [5,8,4],[6,9,5],[7,10,6],[4,11,7],
             
-            oct2.vertices[5], oct2.vertices[3], oct2.vertices[4],
-            cub.vertices[7],cub.vertices[6],cub.vertices[10],
-            
-            oct1.vertices[3], oct1.vertices[4], oct1.vertices[5],
-            
-        ])
+        ].map(vv=>addFace(vv.map(i=>ii[i])));
 
-    /*
-    
-    links2.forEach(([a,b])=>createEdge(pts2[a],pts2[b]))
-*/
-    /*
-    // creo le palline
-    let vertexMat = new BABYLON.StandardMaterial('vertex-mat',scene);
-    vertexMat.diffuseColor.set(0.1,0.1,0.5);
-
-    let vertices = pts.map((p,i)=>{
-        let ball = BABYLON.MeshBuilder.CreateSphere('ball'+i, {diameter:0.5}, scene);
-        ball.material = vertexMat;
-        ball.position.copyFrom(p);
-        return ball;
-    })
-
-    // creo i legami fra le palline
-    let edgeMat = new BABYLON.StandardMaterial('edge-mat',scene);
-    edgeMat.diffuseColor.set(0.1,0.4,0.7);
-    links.forEach(([a,b],i) => {
-        let pa = pts[a];
-        let pb = pts[b];
-        let edge = BABYLON.CreateCylinder('edge'+i, {
-            diameter:0.25,
-            height:1
-        }, scene);
-        align(edge, pa, pb);        
-    });
-    */
-
-
-
-}
-
-function changeColor(widget) {
-    let color = BABYLON.Color3.FromHexString(widget.value);
-    let name = widget.name;
-    let edges = edgesTable[name];
-    if(edges) {
-        edges.forEach(mesh=>mesh.material.diffuseColor.copyFrom(color));
     }
+    function addOctFaces(i0,i1,i2,i3,i4,i5) {
+        let ii = [i0,i1,i2,i3,i4,i5];
+        let ff = [];
+        for(let i=0;i<4;i++) {
+            let i1 = (i+1)%4;
+            ff.push(addFace([0,1+i,1+i1].map(j=>ii[j])));
+            ff.push(addFace([5,1+i1,1+i].map(j=>ii[j])));
+        }
+        cells.push(ff);
+        return ff;
+    }
+
+
+    addOct(r1);
+    addOct(r3);
+    addCubOct(r2);
+
+    // cuboct squares
+    let quads = [
+        [12,13,14,15],
+        [19,18,17,16],
+        [12,23,16,20],
+        [13,20,17,21],
+        [14,21,18,22],
+        [15,22,19,23] 
+    ]
+
+    addOctFaces(6,...quads[0],0)
+    addOctFaces(11,...quads[1],5)
+    addOctFaces(7,...quads[2],1)
+    addOctFaces(8,...quads[3],2)
+    addOctFaces(9,...quads[4],3)
+    addOctFaces(10,...quads[5],4)
+
+    // cuboct triangles
+    let triangles = [
+        [12,20,13],
+        [13,21,14],
+        [14,22,15],
+        [15,23,12],
+        
+        [17,20,16],
+        [18,21,17],
+        [19,22,18],
+        [16,23,19]
+        
+    ]
+    for(let i=0; i<4; i++) {
+        addOctFaces(...triangles[i], ...faces[8+i])
+        addOctFaces(...triangles[i], ...faces[i])
+    }
+    for(let i=0; i<4; i++) {
+        addOctFaces(...triangles[4+i], ...faces[8+4+i])
+        addOctFaces(...triangles[4+i], ...faces[4+i])
+    }
+
+    let p24 = new P24(vertices, faces, cells);
+
+    return p24;
 }
+
